@@ -14,26 +14,28 @@ import java.util.stream.Stream;
 
 public class MoneyLaundering
 {
-    private TransactionAnalyzer transactionAnalyzer;
-    private TransactionReader transactionReader;
-    private int amountOfFilesTotal;
-    private AtomicInteger amountOfFilesProcessed;
+    public TransactionAnalyzer transactionAnalyzer;
+    public TransactionReader transactionReader;
+    public int amountOfFilesTotal;
+    public AtomicInteger amountOfFilesProcessed;
+    private static ArrayList<MonkeyLaunderingThread> hilos;
 
     public MoneyLaundering()
     {
         transactionAnalyzer = new TransactionAnalyzer();
         transactionReader = new TransactionReader();
         amountOfFilesProcessed = new AtomicInteger();
+        hilos= new ArrayList<MonkeyLaunderingThread>();
     }
 
-    public void processTransactionData()
+    public void processTransactionData(int ini,int fin)
     {
         amountOfFilesProcessed.set(0);
         List<File> transactionFiles = getTransactionFileList();
         amountOfFilesTotal = transactionFiles.size();
-        for(File transactionFile : transactionFiles)
+        for(int i=ini;i<fin;i++)
         {            
-            List<Transaction> transactions = transactionReader.readTransactionsFromFile(transactionFile);
+            List<Transaction> transactions = transactionReader.readTransactionsFromFile(transactionFiles.get(i));
             for(Transaction transaction : transactions)
             {
                 transactionAnalyzer.addTransaction(transaction);
@@ -47,7 +49,7 @@ public class MoneyLaundering
         return transactionAnalyzer.listOffendingAccounts();
     }
 
-    private List<File> getTransactionFileList()
+    public List<File> getTransactionFileList()
     {
         List<File> csvFiles = new ArrayList<>();
         try (Stream<Path> csvFilePaths = Files.walk(Paths.get("src/main/resources/")).filter(path -> path.getFileName().toString().endsWith(".csv"))) {
@@ -63,25 +65,66 @@ public class MoneyLaundering
         System.out.println(getBanner());
         System.out.println(getHelp());
         MoneyLaundering moneyLaundering = new MoneyLaundering();
-        Thread processingThread = new Thread(() -> moneyLaundering.processTransactionData());
-        processingThread.start();
+        int total=moneyLaundering.getTransactionFileList().size();
+        //System.out.println(total);
+        int tempo=total/5;
+        //System.out.println(tempo);
+        int inicio=0;
+        int fin=tempo;
+        for(int j=0;j<5;j++) {
+        	
+        	if(j==0) {
+        		fin+=total%5;
+        				
+        	}	
+        	//System.out.println("xd");
+        	//System.out.println(inicio);
+        	//System.out.println(fin);
+        	MonkeyLaunderingThread h=new MonkeyLaunderingThread(moneyLaundering,inicio,fin);
+        	hilos.add(h);
+        	h.start();
+        	inicio=fin;
+        	fin+=tempo;
+        }
+        //Thread processingThread = new Thread(() -> moneyLaundering.processTransactionData());
+        //processingThread.start();
+    
         while(true)
         {
+    
+        	
             Scanner scanner = new Scanner(System.in);
             String line = scanner.nextLine();
+            for(MonkeyLaunderingThread h:hilos) {
+            	synchronized(h) {
+            		h.pause=true;
+            		h.notifyAll();
+            	}	
+            	
+            }
             if(line.contains("exit"))
             {
                 System.exit(0);
             }
-
+            
             String message = "Processed %d out of %d files.\nFound %d suspect accounts:\n%s";
             List<String> offendingAccounts = moneyLaundering.getOffendingAccounts();
             String suspectAccounts = offendingAccounts.stream().reduce("", (s1, s2)-> s1 + "\n"+s2);
             message = String.format(message, moneyLaundering.amountOfFilesProcessed.get(), moneyLaundering.amountOfFilesTotal, offendingAccounts.size(), suspectAccounts);
             System.out.println(message);
+            moneyLaundering.activarhilos();
         }
     }
-
+    private void activarhilos() {
+    	  for(MonkeyLaunderingThread h:hilos) {
+          	synchronized(h) {
+          		h.pause=true;
+          		h.notifyAll();
+          	}	
+          	
+          }
+    	
+    }
     private static String getBanner()
     {
         String banner = "\n";

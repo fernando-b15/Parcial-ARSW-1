@@ -20,6 +20,7 @@ public class AccountReporter {
 
             StringEntity entity = new StringEntity(payload,
                     ContentType.APPLICATION_JSON);
+            
 
             try {
                 HttpClient httpClient = HttpClientBuilder.create().build();
@@ -33,6 +34,7 @@ public class AccountReporter {
             } catch (IOException ex) {
                 Logger.getLogger(AccountReporter.class.getName()).log(Level.SEVERE, "Unable to report fraudulent transactions for account", ex);
             }
+            
 
         }
 }
